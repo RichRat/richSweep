@@ -27,7 +27,7 @@ namespace richSweep
 
         public void calcStep(bool innit)
         {
-            if(innit)
+            if (innit)
             {
                 m_board[m_sizeX / 2][m_sizeY / 2].Click();
                 return;
@@ -62,12 +62,12 @@ namespace richSweep
                     }
                 }
 
-            
+
             if (max < 1)
             {
                 for (int x = 0; x < m_sizeX; x++)
                     for (int y = 0; y < m_sizeY; y++)
-                        if (m_board[x][y].FieldMode == Field.Mode.REVEALED)
+                        if (m_board[x][y].FieldMode == Field.Mode.REVEALED && m_board[x][y].RValue > 0)
                             IndirectRule(x, y);
 
                 //TODO calculate possible bomb distributions and if bombcount <= remaining bombs
@@ -75,7 +75,7 @@ namespace richSweep
 
                 m_board[_x][_y].RightClick(); //this is basically an informed guess
             }
-            
+
             // clean up all fields that cannot be bombs (determined by flags)
             for (int x = 0; x < m_sizeX; x++)
                 for (int y = 0; y < m_sizeY; y++)
@@ -100,39 +100,98 @@ namespace richSweep
 
         private void IndirectRule(int x, int y)
         {
+            // prefix n : neighbour, f : field, i : intersecting
+
             IRestrictedField field = m_board[x][y];
-            int flags = 0;
-            int hidden = 0;
+            Console.WriteLine("{0} {1}", x, y);
+            int fFlags = 0;
+            int fHidden = 0;
             foreach (IRestrictedField neighbour in field)
                 switch (neighbour.FieldMode)
                 {
                     case Field.Mode.HIDDEN:
-                        hidden++;
+                        fHidden++;
                         break;
                     case Field.Mode.FLAGGED:
-                        flags++;
+                        fFlags++;
                         break;
                 }
 
-            List<IRestrictedField> commonNeighbours = new List<IRestrictedField>();
-            if (hidden > 0 && flags < field.RValue)
-            {
-                commonNeighbours.Clear();
-                foreach (IRestrictedField neighbour in field)
-                    foreach (IRestrictedField f in neighbour)
-                    {
-                        switch (f.FieldMode)
-                        {
-                            case Field.Mode.HIDDEN:
-                                hidden++;
-                                break;
-                            case Field.Mode.FLAGGED:
-                                flags++;
-                                break;
-                        }
+            int fRemaining = field.RValue - fFlags;
 
-                        //check if field is in intersection - better by coords then by lists (perfromance!!)
+            if (fHidden == 0 || fFlags >= field.RValue)
+                return;
+
+            List<IRestrictedField> commonHiddenNeighbours = new List<IRestrictedField>();
+            foreach (IRestrictedField neighbour in field)
+            {
+                if (neighbour.FieldMode != Field.Mode.REVEALED && neighbour.RValue > 0)
+                    continue;
+
+                int nHidden = 0;
+                int nFlags = 0;
+                commonHiddenNeighbours.Clear();
+
+                foreach (IRestrictedField f in neighbour)
+                {
+                    switch (f.FieldMode)
+                    {
+                        case Field.Mode.HIDDEN:
+                            nHidden++;
+                            break;
+                        case Field.Mode.FLAGGED:
+                            nFlags++;
+                            break;
                     }
+
+                    //check if field is in intersection
+                    int distX = Math.Abs(field.X - f.X);
+                    int distY = Math.Abs(field.Y - f.Y);
+                    if(distX == 1 ^ distY == 1)
+                }
+
+                if (fHidden == 0)
+                    continue;
+
+                int nRemaining = neighbour.RValue - nFlags;
+
+                foreach (IRestrictedField f in field)
+                    m_values[f.X, f.Y] = f.FieldMode == Field.Mode.HIDDEN ? 1 : 0;
+
+                foreach (IRestrictedField f in commonHiddenNeighbours)
+                    m_values[f.X, f.Y] = -1;
+
+                int fCount = fRemaining - commonHiddenNeighbours.Count;
+                int nCount = commonHiddenNeighbours.Count;
+
+                //maximum neighbour case
+                int iMaxFlags = nCount < nRemaining ? nCount : nRemaining;
+                int iMinFlags = -(nHidden - commonHiddenNeighbours.Count - nRemaining);
+
+                //secure non bomb
+                //all f bombs in intersection
+                //click non intersecting hidden fields
+                //probably best to only do one click
+                if (iMinFlags == fRemaining)
+                {
+                    foreach (IRestrictedField f in field)
+                        if (!commonHiddenNeighbours.Contains(f))
+                        {
+                            f.Click();
+                            break;
+                        }
+                    return;
+                }
+                //secure bomb
+                //non intersecting fields are equal to the remaining flags in case of maximum intersecting flags
+                //flag all non intersecting hidden fields
+                else if (fRemaining - iMaxFlags == nHidden - nCount)
+                {
+                    foreach (IRestrictedField f in field)
+                        if (!commonHiddenNeighbours.Contains(f))
+                            f.RightClick();
+                    return;
+                }
             }
         }
 
