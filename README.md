@@ -1,2 +1,2 @@
 # richSweep
-Minesweeper with solving algorythm
+Minesweeper with solving algorithm
