@@ -49,9 +49,9 @@ namespace richSweep
                 for (int y = 0; y < m_sizeY; y++)
                 {
                     // always flag fields with probability 1
-                    if (m_values[x, y] > 0.9f)
+                    if (m_values[x, y] > 0.95f)
                     {
-                        Console.WriteLine("x{0} y{1} prob : 1", x, y);
+                        Console.WriteLine("flag x{0} y{1} prob : 1", x, y);
                         m_board[x][y].RightClick();
                     }
                     if (m_values[x, y] > max)
@@ -62,19 +62,31 @@ namespace richSweep
                     }
                 }
 
-
-            if (max < 1)
+            Console.WriteLine("max: " + max);
+            if (max < 0.95f)
             {
+                bool indirectSuccess = false;
                 for (int x = 0; x < m_sizeX; x++)
                     for (int y = 0; y < m_sizeY; y++)
                         if (m_board[x][y].FieldMode == Field.Mode.REVEALED && m_board[x][y].RValue > 0)
-                            IndirectRule(x, y);
+                            if (IndirectRule(x, y))
+                            {
+                                indirectSuccess = true;
+                                x = m_sizeX;
+                                y = m_sizeY;
+                            }
+
 
                 //TODO calculate possible bomb distributions and if bombcount <= remaining bombs
-                Console.WriteLine("x{0} y{1} prob : {2}", _x, _y, max);
-
-                m_board[_x][_y].RightClick(); //this is basically an informed guess
+                /*
+                if (!indirectSuccess)
+                {
+                    Console.WriteLine("x{0} y{1} prob : {2}", _x, _y, max);
+                    m_board[_x][_y].RightClick(); //this is basically an informed guess
+                }
+                 * */
             }
+
 
             // clean up all fields that cannot be bombs (determined by flags)
             for (int x = 0; x < m_sizeX; x++)
@@ -98,12 +110,18 @@ namespace richSweep
                     m_values[x, y] = 0;
         }
 
-        private void IndirectRule(int x, int y)
+        /// <summary>
+        /// looks at the relation of two revealed (not bomb!) fields
+        /// </summary>
+        /// <param name="x">x-coord of the field</param>
+        /// <param name="y">y-coord of the field</param>
+        /// <returns>true if a shure flag or save field could be concluded</returns>
+        private bool IndirectRule(int x, int y)
         {
             // prefix n : neighbour, f : field, i : intersecting
 
             IRestrictedField field = m_board[x][y];
-            Console.WriteLine("{0} {1}", x, y);
+            Console.WriteLine("indir {0} {1}", x, y);
             int fFlags = 0;
             int fHidden = 0;
             foreach (IRestrictedField neighbour in field)
@@ -120,12 +138,12 @@ namespace richSweep
             int fRemaining = field.RValue - fFlags;
 
             if (fHidden == 0 || fFlags >= field.RValue)
-                return;
+                return false;
 
             List<IRestrictedField> commonHiddenNeighbours = new List<IRestrictedField>();
             foreach (IRestrictedField neighbour in field)
             {
-                if (neighbour.FieldMode != Field.Mode.REVEALED && neighbour.RValue > 0)
+                if (neighbour.FieldMode != Field.Mode.REVEALED || neighbour.RValue == 0)
                     continue;
 
                 int nHidden = 0;
@@ -138,16 +156,14 @@ namespace richSweep
                     {
                         case Field.Mode.HIDDEN:
                             nHidden++;
+                            //check if field is in intersection
+                            if (field.Contains(f))
+                                commonHiddenNeighbours.Add(f);
                             break;
                         case Field.Mode.FLAGGED:
                             nFlags++;
                             break;
                     }
-
-                    //check if field is in intersection
-                    int distX = Math.Abs(field.X - f.X);
-                    int distY = Math.Abs(field.Y - f.Y);
-                    if(distX == 1 ^ distY == 1)
                 }
 
                 if (fHidden == 0)
@@ -161,13 +177,16 @@ namespace richSweep
                 foreach (IRestrictedField f in commonHiddenNeighbours)
                     m_values[f.X, f.Y] = -1;
 
-                int fCount = fRemaining - commonHiddenNeighbours.Count;
-                int nCount = commonHiddenNeighbours.Count;
+                int fCount = fHidden; //TODO rework again :(
+                int iCount = commonHiddenNeighbours.Count;
 
-                //maximum neighbour case
-                int iMaxFlags = nCount < nRemaining ? nCount : nRemaining;
-                int iMinFlags = -(nHidden - commonHiddenNeighbours.Count - nRemaining);
+                //maximum intersection bomb count
+                int iMaxFlags = iCount < nRemaining ? iCount : nRemaining;
+                //minimum intersection bomb count
+                int iMinFlags = nRemaining - (nHidden - iCount);
+                iMinFlags = iMinFlags < 0 ? 0 : iMinFlags;
 
+                bool foundSomething = false;
                 //secure non bomb
                 //all f bombs in intersection
                 //click non intersecting hidden fields
@@ -175,24 +194,33 @@ namespace richSweep
                 if (iMinFlags == fRemaining)
                 {
                     foreach (IRestrictedField f in field)
-                        if (!commonHiddenNeighbours.Contains(f))
+                        if (f.FieldMode == Field.Mode.HIDDEN && !commonHiddenNeighbours.Contains(f))
                         {
                             f.Click();
+                            foundSomething = true;
+                            Console.WriteLine("   iclick {0} {1}", f.X, f.Y);
                             break;
                         }
-                    return;
                 }
                 //secure bomb
                 //non intersecting fields are equal to the remaining flags in case of maximum intersecting flags
                 //flag all non intersecting hidden fields
-                else if (fRemaining - iMaxFlags == nHidden - nCount)
+                else if (fRemaining - iMaxFlags == fHidden - iCount && fHidden - iCount != 0)
                 {
                     foreach (IRestrictedField f in field)
-                        if (!commonHiddenNeighbours.Contains(f))
+                        if (f.FieldMode == Field.Mode.HIDDEN && !commonHiddenNeighbours.Contains(f))
+                        {
                             f.RightClick();
-                    return;
+                            Console.WriteLine("   iflag {0} {1}", f.X, f.Y);
+                            foundSomething = true;
+                        }
                 }
+
+                if (foundSomething)
+                    return true;
             }
+
+            return false;
         }
 
         private void CalculateProbabilities(int x, int y)
@@ -223,11 +251,6 @@ namespace richSweep
                         if (neighbour.FieldMode == Field.Mode.HIDDEN && probability > m_values[neighbour.X, neighbour.Y])
                             m_values[neighbour.X, neighbour.Y] = probability;
                 }
-                /*else
-                {
-                    //TODO do this after assigning values
-                    m_board[x][y].ClickArea();
-                }*/
             }
         }
     }
