@@ -9,7 +9,7 @@
             <RowDefinition></RowDefinition>
             <RowDefinition Height="30"></RowDefinition>
         </Grid.RowDefinitions>
-        
+        <TextBlock Name="debugBlock" Grid.Row="0"></TextBlock>
         <UniformGrid Grid.Row="2" Rows="1" Height="30" HorizontalAlignment="Stretch">
             <TextBlock Name="TimePassedBlock" Margin="1" Width="90" Height="30"  Background="#333" Foreground="Red" FontSize="15" TextAlignment="Center" Padding="5">999</TextBlock>
             <TextBlock Name="BombesRemainingBlock" Margin="1" Width="90" Height="30"  Background="#333" Foreground="Red" FontSize="15" TextAlignment="Center" Padding="5">999</TextBlock>

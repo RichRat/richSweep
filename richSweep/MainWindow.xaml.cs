@@ -22,6 +22,9 @@ namespace richSweep
     {
         Game m_game;
         GameBoardUC m_board;
+
+        static public TextBlock debugLine;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -35,6 +38,8 @@ namespace richSweep
             m_board = new GameBoardUC(m_game);
             Grid.SetRow(m_board, 1);
             this.MainGrid.Children.Add(m_board);
+
+            debugLine = this.debugBlock;
         }
 
         void OnSecondPassed(int seconds)
