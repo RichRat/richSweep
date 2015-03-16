@@ -219,6 +219,8 @@ namespace richSweep
             m_buttonDownR = e.RightButton == MouseButtonState.Pressed;
             m_bothWereDown = m_buttonDownL && m_buttonDownR;
             UpdateVisuals();
+
+            MainWindow.debugLine.Text = m_field.ToString();
         }
 
         Color GetColorForValue()
