@@ -34,6 +34,7 @@ namespace richSweep
             m_game = new Game(this.Dispatcher);
             m_game.SecondPassed += OnSecondPassed;
             m_game.RemainingBombsChanged += OnRemainingBombsChanged;
+            m_game.PushDebugMessage += s => { this.debugBlock.Text = s; };
 
             m_board = new GameBoardUC(m_game);
             Grid.SetRow(m_board, 1);
@@ -68,7 +69,8 @@ namespace richSweep
             if (e.Key == Key.F2)
                 m_game.Reset();
             else if (e.Key == Key.Space)
-                m_game.SolveStep();
+                m_game.TestSolver();
+                //m_game.SolveStep();
         }
     }
 }

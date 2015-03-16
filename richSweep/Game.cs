@@ -15,6 +15,8 @@ namespace richSweep
         public event Action<int> SecondPassed;
         public event Action<int> RemainingBombsChanged;
 
+        public event Action<String> PushDebugMessage;
+
         int m_sizeX;
         int m_sizeY;
         int m_bombCount;
@@ -129,10 +131,16 @@ namespace richSweep
             //m_gameBoard[x].Count < m_sizeY
         }
 
-        void OnFieldModeChanged(Field f)
+        void OnFieldModeChanged(Field field)
         {
-            if (m_state == GameBoardState.PLAY && f.FieldMode == Field.Mode.REVEALED)
-                m_remainingFields--;
+            if (m_state == GameBoardState.PLAY && field.FieldMode == Field.Mode.REVEALED)
+            {
+                m_remainingFields = 0;
+                foreach (List<Field> fl in m_gameBoard)
+                    foreach (Field f in fl)
+                        if (f.FieldMode != Field.Mode.REVEALED)
+                            m_remainingFields++;
+            }
 
             if (m_remainingFields == m_bombCount)
             {
@@ -143,7 +151,8 @@ namespace richSweep
         }
 
         void OnBombClicked(int xSource, int ySource)
-        {
+        { //TODO REWORK
+            
             m_state = GameBoardState.LOST;
 
             new Thread(() => 
@@ -226,6 +235,14 @@ namespace richSweep
                 foreach (Field f in collumn)
                     f.Reset(m_gameBoard);
 
+            m_remainingFields = m_sizeX * m_sizeY;
+            m_flaggedCount = 0;
+
+            if (SecondPassed != null)
+                SecondPassed.Invoke(999);
+            if (RemainingBombsChanged != null)
+                RemainingBombsChanged.Invoke(999);
+
             m_state = GameBoardState.INNITIALIZED;
         }
 
@@ -237,20 +254,28 @@ namespace richSweep
         }
 
         /// <summary>
-        /// Distributes the bombs through the Gameboard
+        /// Distributes the bombs on the Gameboard
         /// </summary>
         /// <param name="startX">first click x Coordinate</param>
         /// <param name="startY">first click y Coordinate</param>
         private void SetBombs(int startX, int startY)
         {
             m_state = GameBoardState.PLAY;
-            for (int i = 0; i < m_bombCount; i++)
+            int bombs = 0;
+            while (bombs < m_bombCount)
             {
                 int x = m_rand.Next(m_sizeX - 1);
                 int y = m_rand.Next(m_sizeY - 1);
-                if (CalcSraightDist(x, y, startX, startY) > 1 && !m_gameBoard[x][y].SetBomb())
-                    i--;
+                if (CalcSraightDist(x, y, startX, startY) > 1)
+                    if(m_gameBoard[x][y].SetBomb())
+                        bombs++;
             }
+
+            int count = 0;
+            foreach (List<Field> lf in m_gameBoard)
+                foreach (Field f in lf)
+                    if(f.Value == -1)  count++;
+            Console.WriteLine("COUNT : " + count.ToString());
 
             foreach (List<Field> lf in m_gameBoard)
                 foreach (Field f in lf)
@@ -266,7 +291,50 @@ namespace richSweep
 
         public void SolveStep()
         {
-            m_solver.calcStep(m_state == GameBoardState.INNITIALIZED);
+            if (m_state == GameBoardState.PLAY || m_state == GameBoardState.INNITIALIZED)
+                m_solver.calcStep(m_state == GameBoardState.INNITIALIZED);
+        }
+
+        static bool onlyOne = false;
+        public void TestSolver()
+        {
+            if (onlyOne == true)
+                return;
+            onlyOne = true;
+            int testRuns = 100;
+            int wait = 1; // ms
+
+            new Thread(() =>
+                {
+                    Action solveStepHandle = () => SolveStep();
+                    Action resetHandle = () => Reset();
+
+                    int wins = 0;
+                    int losses = 0;
+
+                    for (int i = 0; i < testRuns; i++)
+                    {
+                        while (m_state == GameBoardState.PLAY || m_state == GameBoardState.INNITIALIZED)
+                        {
+                            m_UIdisp.Invoke(solveStepHandle);
+                            Thread.Sleep(wait);
+                        }
+
+                        if (m_state == GameBoardState.LOST)
+                            losses++;
+                        else
+                            wins++;
+
+                        String s = String.Format("WINS {0} LOSSES {1}", wins, losses);
+                        m_UIdisp.Invoke(resetHandle);
+                        m_UIdisp.Invoke(PushDebugMessage, s);
+                        Console.WriteLine(s);
+                        Thread.Sleep(100);
+                    }
+                    Console.WriteLine("TERST FINISHED!");
+                    onlyOne = false;
+                }).Start();
+
         }
     }
 }

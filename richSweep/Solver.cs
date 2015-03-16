@@ -42,9 +42,8 @@ namespace richSweep
                         CalculateProbabilities(x, y);
 
             //check calculated probabilities and get the one with the higest prob. in case none has p = 1
-            float max = 0;
-            int _x = 0;
-            int _y = 0;
+            float maxChance = 0, minChance = 1;
+            int max_x = 0, max_y = 0, min_x = 0, min_y = 0;
             for (int x = 0; x < m_sizeX; x++)
                 for (int y = 0; y < m_sizeY; y++)
                 {
@@ -54,37 +53,51 @@ namespace richSweep
                         Console.WriteLine("flag x{0} y{1} prob : 1", x, y);
                         m_board[x][y].RightClick();
                     }
-                    if (m_values[x, y] > max)
+                    if (m_values[x, y] > maxChance)
                     {
-                        max = m_values[x, y];
-                        _x = x;
-                        _y = y;
+                        maxChance = m_values[x, y];
+                        max_x = x;
+                        max_y = y;
                     }
+                    if (m_values[x, y] > 0 && m_values[x, y] < minChance)
+                    {
+                        minChance = m_values[x, y];
+                        min_x = x;
+                        min_y = y;
+                    }
+
                 }
 
-            Console.WriteLine("max: " + max);
-            if (max < 0.95f)
+            Console.WriteLine("max: " + maxChance);
+            if (maxChance < 0.95f)
             {
                 bool indirectSuccess = false;
                 for (int x = 0; x < m_sizeX; x++)
                     for (int y = 0; y < m_sizeY; y++)
                         if (m_board[x][y].FieldMode == Field.Mode.REVEALED && m_board[x][y].RValue > 0)
-                            if (IndirectRule(x, y))
+                            if (IndirectRule(x, y))  //the true magic happens here
                             {
                                 indirectSuccess = true;
                                 x = m_sizeX;
                                 y = m_sizeY;
                             }
 
-
                 //TODO calculate possible bomb distributions and if bombcount <= remaining bombs
-                /*
+
+                //this is basically an informed guess
                 if (!indirectSuccess)
                 {
-                    Console.WriteLine("x{0} y{1} prob : {2}", _x, _y, max);
-                    m_board[_x][_y].RightClick(); //this is basically an informed guess
+                    if (maxChance > 1 - minChance)
+                    {
+                        Console.WriteLine("CHANCE FLAG x{0} y{1} prob : {2}", max_x, max_y, maxChance);
+                        m_board[max_x][max_y].RightClick();
+                    }
+                    else
+                    {
+                        Console.WriteLine("CHANCE CLICK x{0} y{1} prob : {2}", max_x, max_y, minChance);
+                        m_board[min_x][min_y].Click(); 
+                    }
                 }
-                 * */
             }
 
 
@@ -121,7 +134,6 @@ namespace richSweep
             // prefix n : neighbour, f : field, i : intersecting
 
             IRestrictedField field = m_board[x][y];
-            Console.WriteLine("indir {0} {1}", x, y);
             int fFlags = 0;
             int fHidden = 0;
             foreach (IRestrictedField neighbour in field)

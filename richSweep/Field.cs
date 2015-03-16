@@ -248,7 +248,7 @@ namespace richSweep
 
         class RestrictedFieldIterator : IEnumerator<IRestrictedField> 
         {
-            int m_position = 0;
+            int m_position = -1;
             List<Field> m_list;
 
             public RestrictedFieldIterator (List<Field> list)
@@ -273,6 +273,7 @@ namespace richSweep
 
             public bool MoveNext()
             {
+                m_position++;
                 if (m_position >= m_list.Count)
                     return false;
                 else
@@ -281,7 +282,7 @@ namespace richSweep
 
             public void Reset()
             {
-                m_position = 0;
+                m_position = -1;
             }
         }
 
