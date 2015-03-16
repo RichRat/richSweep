@@ -24,7 +24,6 @@ namespace richSweep
         int m_X;
         int m_Y;
 
-        int m_enumeratorPosition = -1;
 
         static bool s_first = true;
         static bool s_game = true;
@@ -238,39 +237,53 @@ namespace richSweep
 
         public IEnumerator<IRestrictedField> GetEnumerator()
         {
-            m_enumeratorPosition = -1;
-            return this;
+            return new RestrictedFieldIterator(m_neighbours);
         }
 
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
         {
-            return this;
+            return new RestrictedFieldIterator(m_neighbours);
         }
 
-        public IRestrictedField Current
+
+        class RestrictedFieldIterator : IEnumerator<IRestrictedField> 
         {
-            get { return m_neighbours[m_enumeratorPosition]; }
+            int m_position = 0;
+            List<Field> m_list;
+
+            public RestrictedFieldIterator (List<Field> list)
+            {
+                m_list = list;
+            }
+
+            public IRestrictedField Current
+            {
+                get { return m_list[m_position]; }
+            }
+
+            public void Dispose()
+            {
+                m_list = null;
+            }
+
+            object System.Collections.IEnumerator.Current
+            {
+                get { return m_list[m_position]; }
+            }
+
+            public bool MoveNext()
+            {
+                if (m_position >= m_list.Count)
+                    return false;
+                else
+                    return true;
+            }
+
+            public void Reset()
+            {
+                m_position = 0;
+            }
         }
 
-        public void Dispose()
-        {
-            m_enumeratorPosition = 0;
-        }
-
-        object System.Collections.IEnumerator.Current
-        {
-            get { return m_neighbours[m_enumeratorPosition]; }
-        }
-
-        public bool MoveNext()
-        {
-            m_enumeratorPosition++;
-            return m_enumeratorPosition < m_neighbours.Count;
-        }
-
-        public void Reset()
-        {
-            m_enumeratorPosition = 0;
-        }
     }
 }

@@ -138,16 +138,18 @@ namespace richSweep
                     {
                         case Field.Mode.HIDDEN:
                             nHidden++;
+                            //check if field is in intersection
+                            int distX = Math.Abs(field.X - f.X);
+                            int distY = Math.Abs(field.Y - f.Y);
+                            if (distX == 1 ^ distY == 1)
+                                commonHiddenNeighbours.Add(f);
                             break;
                         case Field.Mode.FLAGGED:
                             nFlags++;
                             break;
                     }
 
-                    //check if field is in intersection
-                    int distX = Math.Abs(field.X - f.X);
-                    int distY = Math.Abs(field.Y - f.Y);
-                    if(distX == 1 ^ distY == 1)
+
                 }
 
                 if (fHidden == 0)

@@ -9,7 +9,7 @@ namespace richSweep
     /// <summary>
     /// Masks Functions for Solver
     /// </summary>
-    public interface IRestrictedField : IEnumerable<IRestrictedField>, IEnumerator<IRestrictedField>
+    public interface IRestrictedField : IEnumerable<IRestrictedField>
     {
         Field.Mode FieldMode { get; }
         void RightClick();
