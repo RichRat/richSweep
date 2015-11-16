@@ -284,6 +284,7 @@ namespace richSweep
 
         private int CalcSraightDist(int xStart, int yStart, int xEnd, int yEnd)
         {
+
             int x = Math.Abs(xEnd - xStart);
             int y = Math.Abs(yEnd - yStart);
             return x > y ? x : y;
@@ -292,7 +293,7 @@ namespace richSweep
         public void SolveStep()
         {
             if (m_state == GameBoardState.PLAY || m_state == GameBoardState.INNITIALIZED)
-                m_solver.calcStep(m_state == GameBoardState.INNITIALIZED);
+                m_solver.calcStep(m_state == GameBoardState.INNITIALIZED, m_bombCount - m_flaggedCount);
         }
 
         static bool onlyOne = false;
@@ -301,7 +302,7 @@ namespace richSweep
             if (onlyOne == true)
                 return;
             onlyOne = true;
-            int testRuns = 100;
+            int testRuns = 1000;
             int wait = 1; // ms
 
             new Thread(() =>

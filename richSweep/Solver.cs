@@ -15,6 +15,8 @@ namespace richSweep
         float[,] m_values;
         int m_sizeX;
         int m_sizeY;
+        //random with current time as seed
+        Random m_rand = new Random((int)DateTime.Now.ToBinary());
 
         public Solver(List<List<IRestrictedField>> board, int sizeX, int sizeY)
         {
@@ -25,8 +27,9 @@ namespace richSweep
 
         }
 
-        public void calcStep(bool innit)
+        public void calcStep(bool innit, int remainingBombs)
         {
+            bool indirectSuccess = false;
             if (innit)
             {
                 m_board[m_sizeX / 2][m_sizeY / 2].Click();
@@ -51,7 +54,8 @@ namespace richSweep
                     if (m_values[x, y] > 0.95f)
                     {
                         Console.WriteLine("flag x{0} y{1} prob : 1", x, y);
-                        m_board[x][y].RightClick();
+                        m_board[x][y].RightClick(); //TODO if this happens there is no need to do anything after this (ie max chance set to 1)
+                        indirectSuccess = true;
                     }
                     if (m_values[x, y] > maxChance)
                     {
@@ -69,9 +73,9 @@ namespace richSweep
                 }
 
             Console.WriteLine("max: " + maxChance);
-            if (maxChance < 0.95f)
+            if (maxChance < 0.95f && minChance > 0.05f && !indirectSuccess)
             {
-                bool indirectSuccess = false;
+                
                 for (int x = 0; x < m_sizeX; x++)
                     for (int y = 0; y < m_sizeY; y++)
                         if (m_board[x][y].FieldMode == Field.Mode.REVEALED && m_board[x][y].RValue > 0)
@@ -83,10 +87,49 @@ namespace richSweep
                             }
 
                 //TODO calculate possible bomb distributions and if bombcount <= remaining bombs
+                if (!indirectSuccess /*&& minChance == 1 && maxChance == 0*/)
+                {
+                    int remainingFields = 0;
+                    //count remaining boms and fields
+                    for (int x = 0; x < m_sizeX; x++)
+                        for (int y = 0; y < m_sizeY; y++)
+                            if (m_board[x][y].FieldMode == Field.Mode.HIDDEN)
+                                remainingFields ++;
+
+                    
+                    if (remainingFields == remainingBombs)
+                        flagAllHiddenFields();
+
+                    int remainingSafeFields = remainingFields - remainingBombs;
+                    if (remainingFields > 0)
+                        if (remainingSafeFields > remainingBombs)
+                        {
+                            float p = 1 - ((float)remainingSafeFields / remainingFields);
+                            if (p < minChance)
+                            {
+                                IRestrictedField f = getRandomHiddenField(remainingFields);
+                                Console.WriteLine("GLOBAL CHANCE CLICK x{0} y{1} c {2}", f.X, f.Y, p);
+                                f.Click();
+                                indirectSuccess = true;
+                            }
+                        }
+                        else
+                        {
+                            float p = (float)remainingBombs / remainingFields;
+                            if (p > maxChance)
+                            {
+                                IRestrictedField f = getRandomHiddenField(remainingFields);
+                                Console.WriteLine("GLOBAL CHANCE CLICK x{0} y{1} c{2}", f.X, f.Y, p);
+                                f.RightClick();
+                                indirectSuccess = true;
+                            }
+                        }
+                    
+                }
+                
 
                 //this is basically an informed guess
                 if (!indirectSuccess)
-                {
                     if (maxChance > 1 - minChance)
                     {
                         Console.WriteLine("CHANCE FLAG x{0} y{1} prob : {2}", max_x, max_y, maxChance);
@@ -94,14 +137,13 @@ namespace richSweep
                     }
                     else
                     {
-                        Console.WriteLine("CHANCE CLICK x{0} y{1} prob : {2}", max_x, max_y, minChance);
-                        m_board[min_x][min_y].Click(); 
+                        Console.WriteLine("CHANCE CLICK x{0} y{1} prob : {2}", min_x, min_y, minChance);
+                        m_board[min_x][min_y].Click();
                     }
-                }
             }
 
 
-            // clean up all fields that cannot be bombs (determined by flags)
+            // clean up (reveal) all fields that cannot be bombs (determined by flags)
             for (int x = 0; x < m_sizeX; x++)
                 for (int y = 0; y < m_sizeY; y++)
                 {
@@ -116,6 +158,14 @@ namespace richSweep
                 }
         }
 
+        private void flagAllHiddenFields()
+        {
+            for (int x = 0; x < m_sizeX; x++)
+                for (int y = 0; y < m_sizeY; y++)
+                    if (m_board[x][y].FieldMode == Field.Mode.HIDDEN)
+                        m_board[x][y].RightClick();
+        }
+
         private void CleanValuesArray()
         {
             for (int x = 0; x < m_sizeX; x++)
@@ -128,7 +178,7 @@ namespace richSweep
         /// </summary>
         /// <param name="x">x-coord of the field</param>
         /// <param name="y">y-coord of the field</param>
-        /// <returns>true if a shure flag or save field could be concluded</returns>
+        /// <returns>true if a sure flag or save field could be concluded</returns>
         private bool IndirectRule(int x, int y)
         {
             // prefix n : neighbour, f : field, i : intersecting
@@ -265,5 +315,18 @@ namespace richSweep
                 }
             }
         }
+
+        private IRestrictedField getRandomHiddenField(int hiddenCount)
+        {
+            int tmp = 0;
+            int target = m_rand.Next(hiddenCount - 1);
+            for (int x = 0; x < m_sizeX; x++)
+                for (int y = 0; y < m_sizeY; y++)
+                    if (m_board[x][y].FieldMode == Field.Mode.HIDDEN && tmp++ == target)
+                        return m_board[x][y];
+            
+            return null;
+        }
+        
     }
 }

@@ -8,7 +8,7 @@ namespace richSweep
 {
     interface ISolver
     {
-        void SolveStep (bool first);
-        void Ended();
+        void solveStep (bool first);
+        void ended();
     }
 }
